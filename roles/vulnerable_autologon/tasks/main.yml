@@ -52,3 +52,19 @@
     type: string
     state: present
   tags: autologon
+
+- name: Add helpdesk_svc to local Administrators group
+  ansible.windows.win_group_membership:
+    name: Administrators
+    members:
+      - corp\helpdesk_svc
+    state: present
+  tags: autologon
+
+- name: Add helpdesk_svc to local Remote Management Users group
+  ansible.windows.win_group_membership:
+    name: Remote Management Users
+    members:
+      - corp\helpdesk_svc
+    state: present
+  tags: autologon
