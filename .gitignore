@@ -1,0 +1,17 @@
+# Vagrant state
+.vagrant/
+
+# Log files
+*.log
+
+# Ansible retry files
+*.retry
+
+# Temporary/Cache files
+.ansible/
+tmp/
+*.tmp
+
+# OS specific files
+.DS_Store
+Thumbs.db

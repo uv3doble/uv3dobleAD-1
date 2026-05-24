@@ -1,0 +1,85 @@
+---
+# roles/vulnerable_adcs/tasks/main.yml
+
+- name: Install Active Directory Certificate Services (Adcs-Cert-Authority)
+  ansible.windows.win_feature:
+    name: Adcs-Cert-Authority
+    include_management_tools: yes
+    state: present
+  tags: adcs
+
+- name: Configure Certification Authority (Enterprise Root CA)
+  ansible.windows.win_shell: |
+    Import-Module ADCSDeployment
+    # Check if CA is already configured in the registry
+    $isConfigured = Test-Path "HKLM:\SYSTEM\CurrentControlSet\Services\CertSvc\Configuration"
+    if (-not $isConfigured) {
+        Install-AdcsCertificationAuthority `
+          -CAType EnterpriseRootCA `
+          -CACommonName "Corp-CA" `
+          -CryptoProviderName "RSA#Microsoft Software Key Storage Provider" `
+          -KeyLength 2048 `
+          -HashAlgorithmName SHA256 `
+          -Force:$true
+        Write-Output "CA configured successfully"
+    } else {
+        Write-Output "CA is already configured"
+    }
+  register: ca_config
+  changed_when: "'configured successfully' in ca_config.stdout"
+  tags: adcs
+
+- name: Restart CertSvc to ensure CA is initialized
+  ansible.windows.win_service:
+    name: CertSvc
+    state: restarted
+  tags: adcs
+
+- name: Clone User template to CorporateVPN and configure ESC1 (SAN spoofing)
+  ansible.windows.win_shell: |
+    Import-Module ActiveDirectory
+    $domainDN = (Get-ADRootDSE).configurationNamingContext
+    $templatesDN = "CN=Certificate Templates,CN=Public Key Services,CN=Services,$domainDN"
+    $targetDN = "CN=CorporateVPN,$templatesDN"
+    
+    # Check if template already exists
+    $exists = Get-ADObject -Identity $targetDN -ErrorAction SilentlyContinue
+    if ($exists) {
+        Remove-ADObject -Identity $targetDN -Confirm:$false
+        Write-Output "Removed old CorporateVPN template"
+    }
+
+    $sourceDN = "CN=User,$templatesDN"
+    $source = Get-ADObject -Identity $sourceDN -Properties *
+    
+    $exclude = @(
+        'cn', 'canonicalname', 'created', 'createtimestamp', 'deleted', 'description',
+        'distinguishedname', 'dscorepropagationdata', 'instancetype', 'isdeleted',
+        'lastknownparent', 'modified', 'modifytimestamp', 'name', 'objectcategory',
+        'objectclass', 'objectguid', 'protectedfromaccidentaldeletion',
+        'sdrightseffective', 'usnchanged', 'usncreated', 'whenchanged', 'whencreated'
+    )
+    
+    $properties = @{}
+    foreach ($propName in $source.PropertyNames) {
+        if ($exclude -notcontains $propName.ToLower() -and $source.$propName -ne $null) {
+            $properties[$propName] = $source.$propName
+        }
+    }
+    
+    $properties['displayName'] = 'CorporateVPN'
+    $properties['msPKI-Certificate-Name-Flag'] = 1
+    $sourceOID = $source.'msPKI-Cert-Template-OID'
+    $properties['msPKI-Cert-Template-OID'] = "$sourceOID." + (Get-Random -Minimum 1000 -Maximum 9999)
+    
+    New-ADObject -Name "CorporateVPN" -Type "pKICertificateTemplate" -Path $templatesDN -OtherAttributes $properties
+    Write-Output "CorporateVPN template created and configured for ESC1 successfully"
+  register: template_creation
+  changed_when: "'created successfully' in template_creation.stdout"
+  tags: adcs
+
+- name: Publish the CorporateVPN template in the Certification Authority
+  ansible.windows.win_shell: |
+    # Add CorporateVPN to CA template list
+    certutil.exe -SetCATemplates +CorporateVPN
+  tags: adcs

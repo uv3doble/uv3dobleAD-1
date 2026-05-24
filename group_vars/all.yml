@@ -1,0 +1,20 @@
+# Ansible group_vars/all.yml
+domain_admin_password: "vagrant"
+safe_mode_password: "S3cur3P@ssw0rd!2026"
+trust_password: "TrustS3cur3Password!2026"
+
+# Corp forest info
+corp_domain_name: "corp.local"
+corp_netbios_name: "CORP"
+corp_dc_ip: "10.10.10.10"
+corp_network_subnet: "10.10.10.0/24"
+
+# Dev forest info
+dev_domain_name: "dev-internal.local"
+dev_netbios_name: "DEV"
+dev_dc_ip: "10.10.20.11"
+dev_network_subnet: "10.10.20.0/24"
+
+# Routing bridge machine
+router_ip_corp: "10.10.10.11"
+router_ip_dev: "10.10.20.11"

@@ -1,0 +1,42 @@
+---
+# roles/trust/tasks/main.yml
+
+- name: Configure DNS Conditional Forwarder on DC01 for dev-internal.local
+  ansible.windows.win_shell: |
+    Import-Module DNSServer
+    $zone = Get-DnsServerZone -Name "dev-internal.local" -ErrorAction SilentlyContinue
+    if (-not $zone) {
+        Add-DnsServerConditionalForwarderZone -Name "dev-internal.local" -MasterServers 10.10.10.11 -PassThru
+    }
+  when: inventory_hostname == 'dc01-prod'
+  tags: trust, dns
+
+- name: Configure DNS Conditional Forwarder on DC02 for corp.local
+  ansible.windows.win_shell: |
+    Import-Module DNSServer
+    $zone = Get-DnsServerZone -Name "corp.local" -ErrorAction SilentlyContinue
+    if (-not $zone) {
+        Add-DnsServerConditionalForwarderZone -Name "corp.local" -MasterServers 10.10.10.10 -PassThru
+    }
+  when: inventory_hostname == 'dc02-dev-tree'
+  tags: trust, dns
+
+- name: Create Bidirectional External Trust on DC01 (corp.local -> dev-internal.local)
+  ansible.windows.win_shell: |
+    Import-Module ActiveDirectory
+    $trust = Get-ADTrust -Filter "Name -eq 'dev-internal.local'" -ErrorAction SilentlyContinue
+    if (-not $trust) {
+        netdom trust corp.local /Domain:dev-internal.local /Add /Twoway /UserD:"DEV\Administrator" /PasswordD:"{{ domain_admin_password }}"
+    }
+  when: inventory_hostname == 'dc01-prod'
+  tags: trust
+
+- name: Create Bidirectional External Trust on DC02 (dev-internal.local -> corp.local)
+  ansible.windows.win_shell: |
+    Import-Module ActiveDirectory
+    $trust = Get-ADTrust -Filter "Name -eq 'corp.local'" -ErrorAction SilentlyContinue
+    if (-not $trust) {
+        netdom trust dev-internal.local /Domain:corp.local /Add /Twoway /UserD:"CORP\Administrator" /PasswordD:"{{ domain_admin_password }}"
+    }
+  when: inventory_hostname == 'dc02-dev-tree'
+  tags: trust

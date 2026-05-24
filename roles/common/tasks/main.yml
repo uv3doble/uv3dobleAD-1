@@ -1,0 +1,92 @@
+---
+# roles/common/tasks/main.yml
+
+- name: Disable Windows Firewall for all profiles
+  ansible.windows.win_shell: |
+    Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+  tags: firewall
+
+- name: Disable Windows Defender Realtime Monitoring (PowerShell)
+  ansible.windows.win_shell: |
+    Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction SilentlyContinue
+    Set-MpPreference -DisableBehaviorMonitoring $true -ErrorAction SilentlyContinue
+    Set-MpPreference -DisableBlockAtFirstSeen $true -ErrorAction SilentlyContinue
+    Set-MpPreference -DisableIOAVProtection $true -ErrorAction SilentlyContinue
+    Set-MpPreference -DisablePrivacyMode $true -ErrorAction SilentlyContinue
+    Set-MpPreference -SignatureDisableUpdateOnStartupWithoutEngine $true -ErrorAction SilentlyContinue
+    Set-MpPreference -DisableIntrusionPreventionSystem $true -ErrorAction SilentlyContinue
+    Set-MpPreference -DisableScriptScanning $true -ErrorAction SilentlyContinue
+  ignore_errors: yes
+  tags: defender
+
+- name: Disable Windows Defender (Local GPO Registry - DisableAntiSpyware)
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender
+    name: DisableAntiSpyware
+    data: 1
+    type: dword
+    state: present
+  ignore_errors: yes
+  tags: defender
+
+- name: Disable Windows Defender Real-time Protection (Local GPO Registry)
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection
+    name: DisableRealtimeMonitoring
+    data: 1
+    type: dword
+    state: present
+  ignore_errors: yes
+  tags: defender
+
+- name: Disable Windows Defender Behavior Monitoring (Local GPO Registry)
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection
+    name: DisableBehaviorMonitoring
+    data: 1
+    type: dword
+    state: present
+  ignore_errors: yes
+  tags: defender
+
+- name: Enable IP Forwarding on Router (dc02-dev-tree)
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters
+    name: IPEnableRouter
+    data: 1
+    type: dword
+    state: present
+  when: inventory_hostname == 'dc02-dev-tree'
+  tags: routing
+
+- name: Enable and Start RemoteAccess service on Router (dc02-dev-tree)
+  ansible.windows.win_service:
+    name: RemoteAccess
+    start_mode: auto
+    state: started
+  when: inventory_hostname == 'dc02-dev-tree'
+  tags: routing
+
+- name: Configure Static Route for Corp hosts to Dev subnet (dc01-prod, ws01-prod)
+  ansible.windows.win_shell: |
+    $adapter = Get-NetIPAddress | Where-Object { $_.IPAddress -like "10.10.10.*" } | Select-Object -First 1
+    if ($adapter) {
+        $routeExists = Get-NetRoute -DestinationPrefix "10.10.20.0/24" -ErrorAction SilentlyContinue
+        if (-not $routeExists) {
+            New-NetRoute -DestinationPrefix "10.10.20.0/24" -NextHop "10.10.10.11" -InterfaceIndex $adapter.InterfaceIndex -RouteMetric 10
+        }
+    }
+  when: inventory_hostname in ['dc01-prod', 'ws01-prod']
+  tags: routing
+
+- name: Configure Static Route for Dev hosts to Corp subnet (srv01-apps)
+  ansible.windows.win_shell: |
+    $adapter = Get-NetIPAddress | Where-Object { $_.IPAddress -like "10.10.20.*" } | Select-Object -First 1
+    if ($adapter) {
+        $routeExists = Get-NetRoute -DestinationPrefix "10.10.10.0/24" -ErrorAction SilentlyContinue
+        if (-not $routeExists) {
+            New-NetRoute -DestinationPrefix "10.10.10.0/24" -NextHop "10.10.20.11" -InterfaceIndex $adapter.InterfaceIndex -RouteMetric 10
+        }
+    }
+  when: inventory_hostname == 'srv01-apps'
+  tags: routing

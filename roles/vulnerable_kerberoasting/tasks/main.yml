@@ -1,0 +1,30 @@
+---
+# roles/vulnerable_kerberoasting/tasks/main.yml
+
+- name: Create svc_mssql service account and set Service Principal Name (SPN)
+  ansible.windows.win_shell: |
+    Import-Module ActiveDirectory
+    
+    # 1. Create svc_mssql user in corp.local domain
+    $user = Get-ADUser -Filter "SamAccountName -eq 'svc_mssql'" -ErrorAction SilentlyContinue
+    if (-not $user) {
+        $password = ConvertTo-SecureString "S3cur3P@ssw0rd!2026" -AsPlainText -Force
+        New-ADUser -Name "svc_mssql" -SamAccountName "svc_mssql" -AccountPassword $password -Enabled $true -PasswordNeverExpires $true -Path "CN=Users,DC=corp,DC=local"
+        Write-Output "User svc_mssql created successfully"
+    } else {
+        Write-Output "User svc_mssql already exists"
+    }
+    
+    # 2. Add SPN for Kerberoasting
+    $spn = "MSSQLSvc/srv01-apps.corp.local:1433"
+    $userObj = Get-ADUser -Identity "svc_mssql" -Properties ServicePrincipalNames
+    if ($spn -notin $userObj.ServicePrincipalNames) {
+        Set-ADUser -Identity "svc_mssql" -ServicePrincipalNames @{Add=$spn}
+        Write-Output "SPN MSSQLSvc/srv01-apps.corp.local:1433 registered successfully"
+    } else {
+        Write-Output "SPN already registered"
+    }
+  delegate_to: dc01-prod
+  register: spn_registration
+  changed_when: "'registered successfully' in spn_registration.stdout"
+  tags: kerberoasting

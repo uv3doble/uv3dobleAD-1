@@ -1,0 +1,50 @@
+---
+# roles/dc/tasks/main.yml
+
+- name: Install Active Directory Domain Services (AD-Domain-Services)
+  ansible.windows.win_feature:
+    name: AD-Domain-Services
+    include_management_tools: yes
+    state: present
+  register: adds_feature
+
+- name: Reboot server after AD-Domain-Services installation
+  ansible.windows.win_reboot:
+    reboot_timeout: 900
+  when: adds_feature.reboot_required or adds_feature.changed
+
+- name: Set domain variables for DC01
+  ansible.builtin.set_fact:
+    target_domain: "{{ corp_domain_name }}"
+    target_netbios: "{{ corp_netbios_name }}"
+  when: inventory_hostname == 'dc01-prod'
+
+- name: Set domain variables for DC02
+  ansible.builtin.set_fact:
+    target_domain: "{{ dev_domain_name }}"
+    target_netbios: "{{ dev_netbios_name }}"
+  when: inventory_hostname == 'dc02-dev-tree'
+
+- name: Check if the server is already a Domain Controller
+  ansible.windows.win_shell: |
+    (Get-WmiObject Win32_ComputerSystem).DomainRole
+  register: domain_role
+  changed_when: false
+
+- name: Promote server to Domain Controller (New Forest)
+  ansible.windows.win_shell: |
+    Import-Module ADDSDeployment
+    $password = ConvertTo-SecureString "{{ domain_admin_password }}" -AsPlainText -Force
+    Install-ADDSForest `
+      -DomainName "{{ target_domain }}" `
+      -DomainNetbiosName "{{ target_netbios }}" `
+      -SafeModeAdministratorPassword $password `
+      -NoRebootOnCompletion:$true `
+      -Force:$true
+  when: domain_role.stdout | trim | int < 4
+  register: dc_promotion
+
+- name: Reboot server after Domain Controller promotion
+  ansible.windows.win_reboot:
+    reboot_timeout: 900
+  when: dc_promotion.changed

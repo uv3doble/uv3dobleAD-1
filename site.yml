@@ -1,0 +1,64 @@
+---
+# site.yml
+# Main Active Directory Lab Orchestration Playbook
+
+- name: Play 1 - Setup Common Host Configurations
+  hosts: all
+  gather_facts: no
+  become: yes
+  become_method: runas
+  become_user: System
+  roles:
+    - common
+
+- name: Play 2 - Promote Active Directory Domain Controllers
+  hosts: dcs
+  gather_facts: no
+  become: yes
+  become_method: runas
+  become_user: System
+  roles:
+    - dc
+
+- name: Play 3 - Configure Domain Trust and Cross-DNS Resolution
+  hosts: dcs
+  gather_facts: no
+  become: yes
+  become_method: runas
+  become_user: System
+  roles:
+    - trust
+
+- name: Play 4 - Join Member Stations/Servers to Domain
+  hosts: members
+  gather_facts: no
+  become: yes
+  become_method: runas
+  become_user: System
+  roles:
+    - member
+
+- name: Play 5 - Deploy Controlled Security Vulnerabilities
+  hosts: all
+  gather_facts: no
+  become: yes
+  become_method: runas
+  become_user: System
+  tasks:
+    - name: Configure AD CS and ESC1 on DC01
+      ansible.builtin.import_role:
+        name: vulnerable_adcs
+      when: inventory_hostname == 'dc01-prod'
+
+    - name: Configure exposed AutoLogon on WS01
+      ansible.builtin.import_role:
+        name: vulnerable_autologon
+      when: inventory_hostname == 'ws01-prod'
+
+    - name: Configure Kerberoasting Service Account
+      ansible.builtin.import_role:
+        name: vulnerable_kerberoasting
+      when: inventory_hostname == 'srv01-apps'
+...
+
+

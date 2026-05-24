@@ -1,0 +1,37 @@
+---
+# roles/member/tasks/main.yml
+
+- name: Set DNS Client Server Address to DC01 (10.10.10.10) for internal adapter
+  ansible.windows.win_shell: |
+    $adapter = Get-NetIPAddress | Where-Object { $_.IPAddress -like "10.10.10.*" -or $_.IPAddress -like "10.10.20.*" } | Select-Object -First 1
+    if ($adapter) {
+        Set-DnsClientServerAddress -InterfaceIndex $adapter.InterfaceIndex -ServerAddresses "10.10.10.10"
+        Write-Output "DNS Server set to 10.10.10.10 on InterfaceIndex $($adapter.InterfaceIndex)"
+    } else {
+        Write-Error "Internal adapter not found"
+    }
+  register: dns_setup
+  changed_when: "'DNS Server set' in dns_setup.stdout"
+  tags: member, dns
+
+- name: Join Member Server to corp.local Domain
+  ansible.windows.win_shell: |
+    $sysInfo = Get-WmiObject Win32_ComputerSystem
+    if (-not ($sysInfo.PartofDomain -and $sysInfo.Domain -eq "{{ corp_domain_name }}")) {
+        $secPassword = ConvertTo-SecureString "{{ domain_admin_password }}" -AsPlainText -Force
+        $credential = New-Object System.Management.Automation.PSCredential("CORP\Administrator", $secPassword)
+        Add-Computer -DomainName "{{ corp_domain_name }}" -Credential $credential -Force
+        Write-Output "Joined domain successfully"
+    } else {
+        Write-Output "Already in domain"
+    }
+  register: domain_join
+  changed_when: "'Joined domain successfully' in domain_join.stdout"
+  tags: member
+
+- name: Reboot member server after joining domain
+  ansible.windows.win_reboot:
+    reboot_timeout: 900
+  when: domain_join.changed
+  tags: member
+
