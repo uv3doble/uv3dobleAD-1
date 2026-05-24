@@ -1,4 +1,4 @@
-# Laboratorio de Auditoria de Seguridad en Active Directory
+# uv3dobleAD-1
 
 Este proyecto proporciona la configuracion de Infraestructura como Codigo (IaC) necesaria para el despliegue automatizado de un entorno de pruebas y auditoria de Active Directory. 
 
@@ -31,10 +31,6 @@ graph TD
     WS01 <== Enrutamiento de red ==> SRV01
 ```
 
-A continuacion se presenta el diagrama de arquitectura detallado con el flujo de datos y las relaciones de confianza:
-
-![Diagrama de Arquitectura del Laboratorio](assets/architecture_diagram.png)
-
 ### Maquinas Virtuales y Hardware Asignado
 1. **dc01-prod** (Windows Server 2022): 6 GB de Memoria RAM, 2 vCPUs y direccion IP estatica 10.10.10.10 en la red net_corp_prod. Controlador de dominio para corp.local.
 2. **dc02-dev-tree** (Windows Server 2022): 6 GB de Memoria RAM, 2 vCPUs y doble interfaz de red (10.10.10.11 en net_corp_prod y 10.10.20.11 en net_dev_zone). Controlador de dominio para dev-internal.local y enrutador IP.
@@ -61,8 +57,8 @@ El aprovisionamiento de las maquinas y servicios esta completamente automatizado
 ### 1. Clonar el repositorio
 Clone este repositorio de forma local y acceda a la carpeta del proyecto:
 ```bash
-git clone <url-del-repositorio>
-cd CreateLab-ActiveDirectory
+git clone https://github.com/uv3doble/uv3dobleAD-1.git
+cd uv3dobleAD-1
 ```
 
 ### 2. Ejecutar el script de inicializacion
