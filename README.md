@@ -1,18 +1,18 @@
-# Active Directory Security Audit Lab 🚀
+# Laboratorio de Auditoria de Seguridad en Active Directory
 
-Este proyecto contiene toda la **Infraestructura como Código (IaC)** necesaria para desplegar automáticamente un laboratorio de auditoría de seguridad y pruebas de penetración en Active Directory avanzado. 
+Este proyecto proporciona la configuracion de Infraestructura como Codigo (IaC) necesaria para el despliegue automatizado de un entorno de pruebas y auditoria de Active Directory. 
 
-El entorno consta de dos bosques de Active Directory independientes conectados mediante una relación de confianza externa bidireccional, con enrutamiento entre subredes internas, controles de seguridad desactivados (Firewall y Windows Defender) y tres vectores de ataque reales listos para auditar.
+El entorno simula una infraestructura corporativa compuesta por dos bosques independientes conectados mediante una relacion de confianza externa bidireccional, enrutamiento entre subredes internas, exclusion de controles locales (Firewall de Windows y Windows Defender) y tres vectores de ataque configurados para simulaciones de seguridad.
 
 ---
 
-## 🗺️ Arquitectura de Red y Topología
+## Arquitectura de Red y Topologia
 
-El laboratorio consta de 4 máquinas virtuales que simulan una infraestructura corporativa segmentada:
+El laboratorio esta compuesto por cuatro maquinas virtuales distribuidas en dos subredes de red internas aisladas, interconectadas a traves de una maquina con doble interfaz de red que realiza funciones de enrutamiento:
 
 ```mermaid
 graph TD
-    subgraph Red de Producción: net_corp_prod [10.10.10.0/24]
+    subgraph Red de Produccion: net_corp_prod [10.10.10.0/24]
         DC01[dc01-prod <br> 10.10.10.10 <br> corp.local]
         WS01[ws01-prod <br> 10.10.10.20 <br> Windows 10]
     end
@@ -25,96 +25,92 @@ graph TD
         SRV01[srv01-apps <br> 10.10.20.30 <br> Win Server 2022]
     end
 
-    %% Relaciones
     DC01 <-->|Confianza Bidireccional| DC02
-    WS01 -.->|Unido a corp.local| DC01
-    SRV01 -.->|Unido a corp.local| DC01
-    
-    %% Tránsito de red
-    WS01 <== Enrutado por DC02 ==> SRV01
+    WS01 -.->|Miembro de corp.local| DC01
+    SRV01 -.->|Miembro de corp.local| DC01
+    WS01 <== Enrutamiento de red ==> SRV01
 ```
 
-### Detalle de Hardware Virtual Asignado
-1. **`dc01-prod`** (Windows Server 2022): `6 GB RAM` | `2 vCPUs` | IP `10.10.10.10` en `net_corp_prod`.
-2. **`dc02-dev-tree`** (Windows Server 2022): `6 GB RAM` | `2 vCPUs` | Doble interfaz: IP `10.10.10.11` en `net_corp_prod` y `10.10.20.11` en `net_dev_zone`. Actúa como enrutador.
-3. **`ws01-prod`** (Windows 10 Enterprise): `4 GB RAM` | `2 vCPUs` | IP `10.10.10.20` en `net_corp_prod`.
-4. **`srv01-apps`** (Windows Server 2022): `4 GB RAM` | `1 vCPU` | IP `10.10.20.30` en `net_dev_zone`.
+A continuacion se presenta el diagrama de arquitectura detallado con el flujo de datos y las relaciones de confianza:
+
+![Diagrama de Arquitectura del Laboratorio](assets/architecture_diagram.png)
+
+### Maquinas Virtuales y Hardware Asignado
+1. **dc01-prod** (Windows Server 2022): 6 GB de Memoria RAM, 2 vCPUs y direccion IP estatica 10.10.10.10 en la red net_corp_prod. Controlador de dominio para corp.local.
+2. **dc02-dev-tree** (Windows Server 2022): 6 GB de Memoria RAM, 2 vCPUs y doble interfaz de red (10.10.10.11 en net_corp_prod y 10.10.20.11 en net_dev_zone). Controlador de dominio para dev-internal.local y enrutador IP.
+3. **ws01-prod** (Windows 10 Enterprise): 4 GB de Memoria RAM, 2 vCPUs y direccion IP estatica 10.10.10.20 en la red net_corp_prod. Estacion de trabajo unida a corp.local.
+4. **srv01-apps** (Windows Server 2022): 4 GB de Memoria RAM, 1 vCPU y direccion IP estatica 10.10.20.30 en la red net_dev_zone. Servidor de aplicaciones unido a corp.local.
 
 ---
 
-## 🛠️ Requisitos Previos
+## Requisitos del Sistema
 
-Antes de desplegar el laboratorio, asegúrate de tener instalado lo siguiente en tu sistema host Linux:
+Para el correcto despliegue del entorno, el host Linux debe contar con las siguientes herramientas instaladas:
 
-1. **VirtualBox** (versión 6.1 o superior)
+1. **VirtualBox** (version 6.1 o posterior)
 2. **Vagrant**
 3. **Ansible**
-4. **Recursos de Hardware:** Se recomienda un mínimo de **24 GB de RAM** libre en el host físico y al menos **60 GB de espacio libre en disco** (los discos virtuales son dinámicos pero las imágenes de evaluación de Windows son grandes).
+4. **Hardware del Sistema:** Se requiere un minimo de 24 GB de Memoria RAM en el host y al menos 60 GB de espacio de almacenamiento en disco disponible.
 
 ---
 
-## 🚀 Instrucciones de Despliegue
+## Instrucciones de Despliegue
 
-Todo el despliegue está automatizado. Simplemente sigue estos pasos:
+El aprovisionamiento de las maquinas y servicios esta completamente automatizado. Para iniciar el laboratorio, realice los siguientes pasos:
 
 ### 1. Clonar el repositorio
-Clona este repositorio en tu máquina y sitúate dentro de la carpeta:
+Clone este repositorio de forma local y acceda a la carpeta del proyecto:
 ```bash
-git clone <tu-repositorio-url>
+git clone <url-del-repositorio>
 cd CreateLab-ActiveDirectory
 ```
 
-### 2. Ejecutar el script de despliegue
-Ejecuta el script automatizado que comprobará tus herramientas, levantará las máquinas virtuales y las aprovisionará:
+### 2. Ejecutar el script de inicializacion
+Asigne permisos de ejecucion y ejecute el script de despliegue:
 ```bash
 ./deploy.sh
 ```
 
-> 💡 **Nota:** La primera vez que ejecutes esto, Vagrant descargará las imágenes oficiales de evaluación de Windows (`gusztavvargadr/windows-server-2022-standard` y `gusztavvargadr/windows-10`). Dependiendo de tu conexión de internet, esto puede tomar entre 15 y 45 minutos. Las siguientes veces iniciará en pocos minutos.
+El script verificara la presencia de las dependencias requeridas en el host, iniciara las maquinas virtuales a traves de Vagrant, comprobara la conexion de administracion remota (WinRM) y ejecutara los playbooks de Ansible para configurar las directivas, los dominios y los vectores de ataque.
 
 ---
 
-## 🎯 Escenarios de Vulnerabilidad Configurados
+## Escenarios de Vulnerabilidad Implementados
 
-El laboratorio cuenta con tres vulnerabilidades simulando malas configuraciones reales de seguridad para fines prácticos:
+El laboratorio cuenta con tres vectores de ataque reales configurados especificamente para entrenamiento en auditoria de seguridad:
 
 ### A. Abuso de Plantillas de Certificados - ESC1 (AD CS)
-* **Ubicación:** `dc01-prod` (Dominio `corp.local`)
-* **Detalle:** Se instala una Autoridad de Certificación corporativa (Enterprise CA). Se clona la plantilla clásica de `User` en una plantilla llamada `CorporateVPN` modificando su atributo `msPKI-Certificate-Name-Flag` a `1` (que activa la opción `ENROLLEE_SUPPLIES_SUBJECT`).
-* **Vía de Explotación:** Cualquier usuario estándar del dominio puede solicitar un certificado digital bajo esta plantilla e inyectar un nombre alternativo del sujeto (SAN) apuntando a un Administrador del Dominio, obteniendo un certificado válido que permite autenticarse como Administrador.
+* **Objetivo:** dc01-prod (Dominio corp.local)
+* **Configuracion:** Se instala una Autoridad de Certificacion (Enterprise Root CA). Se realiza una copia de la plantilla por defecto User bajo el nombre CorporateVPN, modificando el atributo msPKI-Certificate-Name-Flag a 1 (lo que activa la propiedad ENROLLEE_SUPPLIES_SUBJECT).
+* **Vectores de Auditoria:** Esta configuracion permite que cualquier usuario autenticado dentro del dominio solicite un certificado e indique un nombre alternativo de sujeto (SAN) arbitrario (por ejemplo, el administrador del dominio), logrando la suplantacion de identidad para autenticacion en el dominio.
 
 ### B. Credenciales en Registro AutoLogon
-* **Ubicación:** `ws01-prod` (Windows 10)
-* **Detalle:** Se crea la cuenta de soporte `helpdesk_svc` en el dominio. Se simula una mala configuración de inicio de sesión automático inyectando sus credenciales de texto plano en las claves del registro de Windows NT Winlogon.
-* **Vía de Explotación:** Al obtener acceso a la máquina ws01-prod (o leyendo el registro de forma remota si hay permisos), un auditor puede extraer las siguientes credenciales:
-  * **Usuario:** `helpdesk_svc`
-  * **Contraseña:** `S3cur3P@ssw0rd!2026`
-  * **Dominio:** `corp`
+* **Objetivo:** ws01-prod (Windows 10)
+* **Configuracion:** Se crea la cuenta de usuario de dominio helpdesk_svc en corp.local. Se habilita el inicio de sesion automatico en la estacion de trabajo ws01-prod, almacenando las credenciales en texto plano dentro de la clave del registro HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon.
+* **Vectores de Auditoria:** Al comprometer la maquina (o acceder al registro mediante consultas remotas si existen privilegios), un auditor puede extraer las credenciales del operador de soporte tecnico del dominio.
 
-### C. Kerberoasting (Cuenta de Servicio con SPN)
-* **Ubicación:** `srv01-apps` (Windows Server 2022 / Dominio `corp.local`)
-* **Detalle:** Se crea la cuenta de usuario de dominio `svc_mssql` con una contraseña débil (`Password123!`). Posteriormente, se le asocia el Service Principal Name (SPN) `MSSQLSvc/srv01-apps.corp.local:1433`.
-* **Vía de Explotación:** Cualquier usuario autenticado en el dominio puede solicitar un ticket de servicio TGS para dicho SPN. Al obtener el ticket (que está cifrado con el hash de la contraseña de `svc_mssql`), se puede extraer de la memoria y crackear localmente (offline) con herramientas como `hashcat` o `John the Ripper` para descifrar la contraseña.
+### C. Kerberoasting (Cuentas de Servicio con SPN)
+* **Objetivo:** srv01-apps (Windows Server 2022)
+* **Configuracion:** Se crea una cuenta de servicio de dominio llamada svc_mssql en corp.local con una contraseña vulnerable de baja complejidad (Password123!). Se le asigna el Service Principal Name (SPN) MSSQLSvc/srv01-apps.corp.local:1433.
+* **Vectores de Auditoria:** Al solicitar un ticket de servicio Kerberos (TGS) para esta cuenta desde cualquier maquina unida al dominio, el ticket cifrado con la clave de la cuenta svc_mssql puede ser extraido de memoria y descifrado mediante tecnicas de cracking offline (como hashcat o John the Ripper).
 
 ---
 
-## 🔒 Acceso y Credenciales
+## Referencia de Credenciales
 
-### Acceso Visual
-Aunque las máquinas se inician en segundo plano (headless) para optimizar el host, puedes ver la pantalla y controlarlas gráficamente abriendo la app de **VirtualBox** y haciendo doble clic en la máquina deseada o pulsando **"Mostrar"**.
-
-### Cuentas y Contraseñas
-* **Administrador del Dominio / Local (DC01 y DC02):** `Administrator` / `vagrant`
-* **Cuenta Helpdesk (AutoLogon):** `helpdesk_svc` / `S3cur3P@ssw0rd!2026`
-* **Cuenta SQL (Kerberoasting):** `svc_mssql` / `Password123!`
+| Servidor / Recurso | Tipo de Cuenta | Nombre de Usuario | Contrasena |
+| :--- | :--- | :--- | :--- |
+| Entorno General | Administrador Local / Dominio | Administrator | vagrant |
+| Soporte Tecnico (AutoLogon) | Usuario de Dominio (corp) | helpdesk_svc | S3cur3P@ssw0rd!2026 |
+| Base de Datos (Kerberoasting) | Usuario de Dominio (corp) | svc_mssql | Password123! |
 
 ---
 
-## 🧹 Limpiar el Laboratorio
+## Desmantelamiento del Entorno
 
-Cuando termines tus pruebas y desees apagar y borrar por completo las máquinas virtuales de tu disco duro para liberar espacio, ejecuta:
+Para apagar y eliminar todas las maquinas virtuales creadas en VirtualBox para liberar recursos del host, ejecute el siguiente comando desde la carpeta del proyecto:
 
 ```bash
 vagrant destroy -f
 ```
-Esto eliminará las 4 VMs de tu VirtualBox de forma definitiva. Tus archivos de configuración en el host se mantendrán intactos para cuando quieras volver a levantarlas.
+Esto eliminara las instancias del hipervisor, manteniendo el codigo fuente intacto para despliegues posteriores.
