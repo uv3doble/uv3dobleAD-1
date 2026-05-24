@@ -1,112 +1,112 @@
 # uv3dobleAD-1
 
-Este proyecto proporciona la configuracion de Infraestructura como Codigo (IaC) necesaria para el despliegue automatizado de un entorno de pruebas y auditoria de Active Directory. 
+This repository contains the Infrastructure as Code (IaC) configuration required to automatically deploy an Active Directory security auditing and testing laboratory.
 
-El entorno simula una infraestructura corporativa compuesta por dos bosques independientes conectados mediante una relacion de confianza externa bidireccional, enrutamiento entre subredes internas, exclusion de controles locales (Firewall de Windows y Windows Defender) y tres vectores de ataque configurados para simulaciones de seguridad.
+The environment simulates an enterprise infrastructure consisting of two independent forests connected via a bidirectional external trust relationship, network routing between internal subnets, disabled local security controls (Windows Firewall and Windows Defender), and three pre-configured attack paths for security simulations.
 
 ---
 
-## Arquitectura de Red y Topologia
+## Network Architecture and Topology
 
-El laboratorio esta compuesto por cuatro maquinas virtuales distribuidas en dos subredes de red internas aisladas, interconectadas a traves de una maquina con doble interfaz de red que realiza funciones de enrutamiento:
+The laboratory is composed of four virtual machines distributed across two isolated internal subnets, interconnected through a dual-homed virtual machine performing routing functions:
 
 ```mermaid
 graph TD
-    subgraph Red de Produccion: net_corp_prod [10.10.10.0/24]
+    subgraph Production Subnet: net_corp_prod [10.10.10.0/24]
         DC01[dc01-prod <br> 10.10.10.10 <br> corp.local]
         WS01[ws01-prod <br> 10.10.10.20 <br> Windows 10]
     end
 
-    subgraph Enrutamiento [Doble Interfaz]
+    subgraph Routing [Dual-Homed]
         DC02[dc02-dev-tree <br> 10.10.10.11 / 10.10.20.11 <br> dev-internal.local]
     end
 
-    subgraph Red de Desarrollo: net_dev_zone [10.10.20.0/24]
+    subgraph Development Subnet: net_dev_zone [10.10.20.0/24]
         SRV01[srv01-apps <br> 10.10.20.30 <br> Win Server 2022]
     end
 
-    DC01 <-->|Confianza Bidireccional| DC02
-    WS01 -.->|Miembro de corp.local| DC01
-    SRV01 -.->|Miembro de corp.local| DC01
-    WS01 <== Enrutamiento de red ==> SRV01
+    DC01 <-->|Bidirectional Trust| DC02
+    WS01 -.->|Member of corp.local| DC01
+    SRV01 -.->|Member of corp.local| DC01
+    WS01 <== Network Routing ==> SRV01
 ```
 
-### Maquinas Virtuales y Hardware Asignado
-1. **dc01-prod** (Windows Server 2022): 6 GB de Memoria RAM, 2 vCPUs y direccion IP estatica 10.10.10.10 en la red net_corp_prod. Controlador de dominio para corp.local.
-2. **dc02-dev-tree** (Windows Server 2022): 6 GB de Memoria RAM, 2 vCPUs y doble interfaz de red (10.10.10.11 en net_corp_prod y 10.10.20.11 en net_dev_zone). Controlador de dominio para dev-internal.local y enrutador IP.
-3. **ws01-prod** (Windows 10 Enterprise): 4 GB de Memoria RAM, 2 vCPUs y direccion IP estatica 10.10.10.20 en la red net_corp_prod. Estacion de trabajo unida a corp.local.
-4. **srv01-apps** (Windows Server 2022): 4 GB de Memoria RAM, 1 vCPU y direccion IP estatica 10.10.20.30 en la red net_dev_zone. Servidor de aplicaciones unido a corp.local.
+### Virtual Machines and Hardware Allocation
+1. **dc01-prod** (Windows Server 2022): 6 GB RAM, 2 vCPUs, and static IP address 10.10.10.10 on the net_corp_prod network. Primary domain controller for corp.local.
+2. **dc02-dev-tree** (Windows Server 2022): 6 GB RAM, 2 vCPUs, and dual network interfaces (10.10.10.11 on net_corp_prod and 10.10.20.11 on net_dev_zone). Domain controller for dev-internal.local and IP router.
+3. **ws01-prod** (Windows 10 Enterprise): 4 GB RAM, 2 vCPUs, and static IP address 10.10.10.20 on the net_corp_prod network. Workstation joined to corp.local.
+4. **srv01-apps** (Windows Server 2022): 4 GB RAM, 1 vCPU, and static IP address 10.10.20.30 on the net_dev_zone network. Application server joined to corp.local.
 
 ---
 
-## Requisitos del Sistema
+## System Prerequisites
 
-Para el correcto despliegue del entorno, el host Linux debe contar con las siguientes herramientas instaladas:
+To deploy the environment, the Linux host must have the following tools installed:
 
-1. **VirtualBox** (version 6.1 o posterior)
+1. **VirtualBox** (version 6.1 or later)
 2. **Vagrant**
 3. **Ansible**
-4. **Hardware del Sistema:** Se requiere un minimo de 24 GB de Memoria RAM en el host y al menos 60 GB de espacio de almacenamiento en disco disponible.
+4. **Hardware Requirements:** A minimum of 24 GB RAM on the host and at least 60 GB of available disk storage.
 
 ---
 
-## Instrucciones de Despliegue
+## Deployment Instructions
 
-El aprovisionamiento de las maquinas y servicios esta completamente automatizado. Para iniciar el laboratorio, realice los siguientes pasos:
+The provisioning of all virtual machines and services is fully automated. To spin up the laboratory, follow these steps:
 
-### 1. Clonar el repositorio
-Clone este repositorio de forma local y acceda a la carpeta del proyecto:
+### 1. Clone the repository
+Clone this repository locally and navigate to the project directory:
 ```bash
 git clone https://github.com/uv3doble/uv3dobleAD-1.git
 cd uv3dobleAD-1
 ```
 
-### 2. Ejecutar el script de inicializacion
-Asigne permisos de ejecucion y ejecute el script de despliegue:
+### 2. Execute the initialization script
+Grant execution permissions and run the deployment script:
 ```bash
 ./deploy.sh
 ```
 
-El script verificara la presencia de las dependencias requeridas en el host, iniciara las maquinas virtuales a traves de Vagrant, comprobara la conexion de administracion remota (WinRM) y ejecutara los playbooks de Ansible para configurar las directivas, los dominios y los vectores de ataque.
+The script will verify the presence of all required host dependencies, initiate the virtual machines via Vagrant, test remote management connectivity (WinRM), and execute the Ansible playbooks to configure domains, policies, and vulnerability vectors.
 
 ---
 
-## Escenarios de Vulnerabilidad Implementados
+## Implemented Vulnerability Scenarios
 
-El laboratorio cuenta con tres vectores de ataque reales configurados especificamente para entrenamiento en auditoria de seguridad:
+The laboratory features three real-world vulnerability paths configured for security audit training:
 
-### A. Abuso de Plantillas de Certificados - ESC1 (AD CS)
-* **Objetivo:** dc01-prod (Dominio corp.local)
-* **Configuracion:** Se instala una Autoridad de Certificacion (Enterprise Root CA). Se realiza una copia de la plantilla por defecto User bajo el nombre CorporateVPN, modificando el atributo msPKI-Certificate-Name-Flag a 1 (lo que activa la propiedad ENROLLEE_SUPPLIES_SUBJECT).
-* **Vectores de Auditoria:** Esta configuracion permite que cualquier usuario autenticado dentro del dominio solicite un certificado e indique un nombre alternativo de sujeto (SAN) arbitrario (por ejemplo, el administrador del dominio), logrando la suplantacion de identidad para autenticacion en el dominio.
+### A. Certificate Template Misconfiguration - ESC1 (AD CS)
+* **Target:** dc01-prod (Domain corp.local)
+* **Configuration:** An Enterprise Root CA is installed. The default User certificate template is cloned under the name CorporateVPN, with the msPKI-Certificate-Name-Flag attribute modified to 1 (enabling the ENROLLEE_SUPPLIES_SUBJECT property).
+* **Audit Vector:** This allows any authenticated domain user to request a certificate and supply an arbitrary Subject Alternative Name (SAN) (e.g., the Domain Administrator), achieving full identity spoofing and domain takeover.
 
-### B. Credenciales en Registro AutoLogon
-* **Objetivo:** ws01-prod (Windows 10)
-* **Configuracion:** Se crea la cuenta de usuario de dominio helpdesk_svc en corp.local. Se habilita el inicio de sesion automatico en la estacion de trabajo ws01-prod, almacenando las credenciales en texto plano dentro de la clave del registro HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon.
-* **Vectores de Auditoria:** Al comprometer la maquina (o acceder al registro mediante consultas remotas si existen privilegios), un auditor puede extraer las credenciales del operador de soporte tecnico del dominio.
+### B. Exposed Registry AutoLogon Credentials
+* **Target:** ws01-prod (Windows 10)
+* **Configuration:** A domain user account named helpdesk_svc is created in corp.local. Automatic logon is enabled on ws01-prod, storing the credentials in plaintext within the registry key HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon.
+* **Audit Vector:** Upon compromising the workstation (or query the registry remotely if appropriate permissions are met), an auditor can retrieve the administrative operator credentials.
 
-### C. Kerberoasting (Cuentas de Servicio con SPN)
-* **Objetivo:** srv01-apps (Windows Server 2022)
-* **Configuracion:** Se crea una cuenta de servicio de dominio llamada svc_mssql en corp.local con una contraseña vulnerable de baja complejidad (Password123!). Se le asigna el Service Principal Name (SPN) MSSQLSvc/srv01-apps.corp.local:1433.
-* **Vectores de Auditoria:** Al solicitar un ticket de servicio Kerberos (TGS) para esta cuenta desde cualquier maquina unida al dominio, el ticket cifrado con la clave de la cuenta svc_mssql puede ser extraido de memoria y descifrado mediante tecnicas de cracking offline (como hashcat o John the Ripper).
+### C. Kerberoasting (Service Account with SPN)
+* **Target:** srv01-apps (Windows Server 2022)
+* **Configuration:** A domain service account named svc_mssql is created in corp.local with a weak password (Password123!). The Service Principal Name (SPN) MSSQLSvc/srv01-apps.corp.local:1433 is registered and mapped to it.
+* **Audit Vector:** Any authenticated domain user can request a Kerberos ticket-granting service (TGS) ticket for this SPN. The ticket, encrypted with the hash of the svc_mssql account, can be dumped from memory and cracked offline using hashcat or John the Ripper.
 
 ---
 
-## Referencia de Credenciales
+## Credentials Reference
 
-| Servidor / Recurso | Tipo de Cuenta | Nombre de Usuario | Contrasena |
+| Target Server / Resource | Account Type | Username | Password |
 | :--- | :--- | :--- | :--- |
-| Entorno General | Administrador Local / Dominio | Administrator | vagrant |
-| Soporte Tecnico (AutoLogon) | Usuario de Dominio (corp) | helpdesk_svc | S3cur3P@ssw0rd!2026 |
-| Base de Datos (Kerberoasting) | Usuario de Dominio (corp) | svc_mssql | Password123! |
+| General Environment | Local Administrator / Domain Admin | Administrator | vagrant |
+| Helpdesk Operator (AutoLogon) | Domain User (corp.local) | helpdesk_svc | S3cur3P@ssw0rd!2026 |
+| Database Service (Kerberoasting) | Domain User (corp.local) | svc_mssql | Password123! |
 
 ---
 
-## Desmantelamiento del Entorno
+## Tearing Down the Environment
 
-Para apagar y eliminar todas las maquinas virtuales creadas en VirtualBox para liberar recursos del host, ejecute el siguiente comando desde la carpeta del proyecto:
+To shut down and completely delete all virtual machines from VirtualBox to free up host resources, run the following command from the project folder:
 
 ```bash
 vagrant destroy -f
 ```
-Esto eliminara las instancias del hipervisor, manteniendo el codigo fuente intacto para despliegues posteriores.
+This command deletes the hypervisor instances while keeping the source code intact for future deployments.
