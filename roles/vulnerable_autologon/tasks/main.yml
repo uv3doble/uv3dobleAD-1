@@ -53,9 +53,9 @@
     state: present
   tags: autologon
 
-- name: Add helpdesk_svc to local Administrators group
+- name: Add helpdesk_svc to local Remote Desktop Users group
   ansible.windows.win_group_membership:
-    name: Administrators
+    name: Remote Desktop Users
     members:
       - corp\helpdesk_svc
     state: present
