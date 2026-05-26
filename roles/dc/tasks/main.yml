@@ -48,3 +48,9 @@
   ansible.windows.win_reboot:
     reboot_timeout: 900
   when: dc_promotion.changed
+
+- name: Configure DNS Forwarders to Google DNS on Domain Controllers
+  ansible.windows.win_shell: |
+    Import-Module DNSServer
+    Set-DnsServerForwarder -IPAddress 8.8.8.8, 8.8.4.4 -PassThru
+  tags: dc, dns_forwarders
